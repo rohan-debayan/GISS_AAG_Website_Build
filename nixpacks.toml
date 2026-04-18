@@ -1,0 +1,11 @@
+[phases.install]
+# Override Railway's default `npm ci` with `npm install --legacy-peer-deps`
+# so transitive peer-dep conflicts (picomatch, yjs/monaco peer deps of
+# @payloadcms/ui) don't fail the build.
+cmds = ['npm install --no-audit --no-fund --legacy-peer-deps']
+
+[phases.build]
+cmds = ['npm run build']
+
+[start]
+cmd = 'npm run start'
