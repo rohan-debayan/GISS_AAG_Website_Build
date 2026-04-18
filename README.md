@@ -1,67 +1,207 @@
-# Payload Blank Template
+# GISS-SG Specialty Group Website
 
-This template comes configured with the bare minimum to get started on anything you need.
+The website of the **Geographic Information Science and Systems Specialty Group**, an American Association of Geographers (AAG) specialty group. A modern rebuild of the prior WordPress site, preserving a decade of community content while giving future board members a simple way to publish updates.
 
-## Quick start
+Live site: 
+Repository: github.com/rohan-debayan/GISS_AAG_Website_Build
 
-This template can be deployed directly from our Cloud hosting and it will setup MongoDB and cloud S3 object storage for media.
+---
 
-## Quick Start - local setup
+## Contents
 
-To spin up this template locally, follow these steps:
+- [What this is](#what-this-is)
+- [Tech stack](#tech-stack)
+- [For board members: how to post content](#for-board-members-how-to-post-content)
+- [For developers: running locally](#for-developers-running-locally)
+- [Project structure](#project-structure)
+- [Deployment](#deployment)
+- [Scripts reference](#scripts-reference)
+- [Credits](#credits)
 
-### Clone
+---
 
-After you click the `Deploy` button above, you'll want to have standalone copy of this repo on your machine. If you've already cloned this repo, skip to [Development](#development).
+## What this is
 
-### Development
+A content-driven website for a research specialty group. The site surfaces:
 
-1. First [clone the repo](#clone) if you have not done so already
-2. `cd my-project && cp .env.example .env` to copy the example environment variables. You'll need to add the `MONGODB_URL` from your Cloud project to your `.env` if you want to use S3 storage and the MongoDB database that was created for you.
+- **News** posts from the group (2015 onwards)
+- **Awards** with dedicated pages per honor (Student Honors Paper Competition, Aangeenbrug Award, Waldo Tobler Distinguished Lecture), each with current-year winners plus a historical list
+- **Annual event details** for each award year (poster, date, location, session agendas with presenters)
+- **Officers** directory with photos, affiliations, and social links
+- **Gallery** of photos from meetings and receptions
+- **Reports** (business meeting minutes, budgets, presentations) with per-document public-or-officers-only visibility
+- **Newsletters** rendered as an interactive PDF carousel
+- **Constitution** and other evergreen governance pages
 
-3. `pnpm install && pnpm dev` to install dependencies and start the dev server
-4. open `http://localhost:3000` to open the app in your browser
+The design is editorial (Fraunces serif + Inter sans; forest green + terracotta palette; Grand Canyon shaded relief hero).
 
-That's it! Changes made in `./src` will be reflected in your app. Follow the on-screen instructions to login and create your first admin user. Then check out [Production](#production) once you're ready to build and serve your app, and [Deployment](#deployment) when you're ready to go live.
+## Tech stack
 
-#### Docker (Optional)
+| Layer | Choice |
+|---|---|
+| Framework | **Next.js 16** (App Router, React 19) |
+| CMS | **Payload CMS 3.83** embedded in the same Next.js app |
+| Database | **PostgreSQL 16** (via Drizzle) |
+| File storage | Local filesystem in dev, Cloudflare R2 in production |
+| Email | **Resend** for password resets and admin invitations |
+| Rich text | Lexical editor with fixed toolbar, link and upload features |
+| Image optimization | Next.js Image + Payload Sharp variants (thumbnail 400x400, card 800x600, hero 1920x1080) |
+| PDF rendering | `react-pdf` for the newsletter carousel |
+| Hosting | **Railway** (app + managed Postgres) |
+| Domain | `aag-giss-sg.org` (planned) |
 
-If you prefer to use Docker for local development instead of a local MongoDB instance, the provided docker-compose.yml file can be used.
+Everything runs in one Node.js service. Admin panel (`/admin`) and public site share the same server; content edits appear on the public site instantly.
 
-To do so, follow these steps:
+## For board members: how to post content
 
-- Modify the `MONGODB_URL` in your `.env` file to `mongodb://127.0.0.1/<dbname>`
-- Modify the `docker-compose.yml` file's `MONGODB_URL` to match the above `<dbname>`
-- Run `docker-compose up` to start the database, optionally pass `-d` to run in the background.
+Log in at **`/admin`** with your email and password. (Forgot password? Click the link, it emails a reset to you.)
 
-## How it works
+### Common tasks
 
-The Payload config is tailored specifically to the needs of most websites. It is pre-configured in the following ways:
+| I want to... | Go to |
+|---|---|
+| Write a news post | Content → Posts → Create New |
+| Add a current officer | People → Officers → Create New |
+| Upload an award winner's photo | Content → Award Winners → Create New |
+| Add the year's event schedule (poster, agenda) | Content → Award Events → Create New |
+| Upload a newsletter PDF | Content → Newsletters → Create New |
+| Post a business meeting minutes document | Content → Reports → Create New (set visibility to Officers only) |
+| Add a gallery photo | Library → Gallery → Create New |
+| Edit an existing page | Content → Pages → click the page |
 
-### Collections
+### Tips
 
-See the [Collections](https://payloadcms.com/docs/configuration/collections) docs for details on how to extend this functionality.
+- Every form field has a small description below it explaining what it's for.
+- Images upload once, resize automatically.
+- Posts and pages support **drafts**: save without publishing, come back later.
+- Reports default to "Officers only" visibility since minutes often contain internal deliberations. Switch to "Public" for items that are safe to share.
+- The rich-text editor has a toolbar above every content field: headings, bold, italic, links, images, lists, tables.
 
-- #### Users (Authentication)
+## For developers: running locally
 
-  Users are auth-enabled collections that have access to the admin panel.
+### Prerequisites
 
-  For additional help, see the official [Auth Example](https://github.com/payloadcms/payload/tree/main/examples/auth) or the [Authentication](https://payloadcms.com/docs/authentication/overview#authentication-overview) docs.
+- **Node.js** 20.x or 22.x (v24 also works)
+- **Docker Desktop** (for Postgres)
+- **Git**
 
-- #### Media
+### Setup
 
-  This is the uploads enabled collection. It features pre-configured sizes, focal point and manual resizing to help you manage your pictures.
+```bash
+# 1. Clone
+git clone https://github.com/rohan-debayan/GISS_AAG_Website_Build.git
 
-### Docker
+# 2. Install dependencies
+npm install
 
-Alternatively, you can use [Docker](https://www.docker.com) to spin up this template locally. To do so, follow these steps:
+# 3. Copy the env template
+cp .env.example .env
+# then edit .env: set PAYLOAD_SECRET, RESEND_API_KEY if you need email locally
 
-1. Follow [steps 1 and 2 from above](#development), the docker-compose file will automatically use the `.env` file in your project root
-1. Next run `docker-compose up`
-1. Follow [steps 4 and 5 from above](#development) to login and create your first admin user
+# 4. Start Postgres (Docker)
+npm run db:up
 
-That's it! The Docker instance will help you get up and running quickly while also standardizing the development environment across your teams.
+# 5. Start the dev server
+npm run dev
+```
 
-## Questions
+Open **http://localhost:3000**. First visit to `/admin` creates the first admin user.
 
-If you have any issues or questions, reach out to us on [Discord](https://discord.com/invite/payload) or start a [GitHub discussion](https://github.com/payloadcms/payload/discussions).
+### Useful dev commands
+
+```bash
+npm run dev          # start dev server
+npm run build        # production build
+npm run start        # serve the production build
+npm run lint         # ESLint
+npm run db:up        # start local Postgres via docker-compose
+npm run db:down      # stop + remove container (volume persists)
+npm run db:logs      # tail Postgres logs
+```
+
+## Project structure
+
+```
+root/
+├── docker-compose.yml        Local Postgres
+├── next.config.ts            Next.js + image domain config
+├── package.json
+├── public/
+│   └── images/               Hero, logos, favicons
+├── scripts/                  One-off CLI scripts (see Scripts reference)
+└── src/
+    ├── access/
+    │   └── byRole.ts         Access control helpers (admin / editor / author)
+    ├── app/
+    │   ├── (frontend)/       Public site routes
+    │   │   ├── page.tsx              home
+    │   │   ├── blog/                 /blog, /blog/[slug]
+    │   │   ├── awards/               /awards, /awards/[slug]
+    │   │   ├── officers/
+    │   │   ├── gallery/
+    │   │   ├── reports/
+    │   │   ├── newsletters/
+    │   │   ├── pages/[slug]/         generic CMS pages
+    │   │   └── components/           SiteHeader, SiteFooter, OfficerAvatar, PdfCarousel...
+    │   └── (payload)/        Admin panel routes (auto-generated)
+    ├── collections/          Payload collection schemas
+    │   ├── Users.ts
+    │   ├── Officers.ts
+    │   ├── Posts.ts
+    │   ├── Pages.ts
+    │   ├── Media.ts
+    │   ├── Gallery.ts
+    │   ├── Winners.ts
+    │   ├── AwardEvents.ts
+    │   ├── Reports.ts
+    │   ├── Events.ts
+    │   ├── Newsletters.ts
+    │   └── Jobs.ts
+    └── payload.config.ts     Top-level Payload + DB + editor + email config
+```
+
+## Deployment
+
+**Production target:** Railway (app service + managed Postgres + auto-HTTPS).
+
+Railway reads `railway.json` at the repo root and picks up the Next.js app. Every push to `main` triggers a deploy.
+
+### Environment variables
+
+Set these in the Railway service settings:
+
+| Variable | What it is |
+|---|---|
+| `DATABASE_URL` | Injected automatically when Postgres plugin is added |
+| `PAYLOAD_SECRET` | Random 96-char hex string; never commit |
+| `NEXT_PUBLIC_SERVER_URL` | The public URL the app is served at |
+| `RESEND_API_KEY` | From resend.com dashboard |
+| `RESEND_FROM` | `no-reply@your-domain.org` once domain is verified; otherwise `onboarding@resend.dev` |
+| `RESEND_FROM_NAME` | `GISS-SG Specialty Group` |
+
+## Access model
+
+Four roles, enforced by `src/access/byRole.ts`:
+
+| Role | Can |
+|---|---|
+| **admin** | Anything, including managing users |
+| **editor** | Create/edit/delete all content, but can't touch users |
+| **author** | CRUD their own posts, read-only elsewhere |
+| *(none)* | Public visitor |
+
+Reports have a per-document `visibility` flag (`public` | `officers`). Anonymous visitors see only public reports. Other collections are public read.
+
+## Credits
+
+- **Design & build:** Debayan Mandal (Communications Director, GISS-SG), 2026
+- **Content:** A decade of work from all past board members, preserved from the original WordPress site
+- **Hero imagery:** USGS National Map shaded relief of the Grand Canyon region (public domain)
+- **CMS:** [Payload 3](https://payloadcms.com)
+- **Framework:** [Next.js 16](https://nextjs.org)
+
+## License
+
+All content © the Geographic Information Science and Systems Specialty Group of the American Association of Geographers. All rights reserved.
+
+The application code is MIT licensed; see `LICENSE` if provided.
