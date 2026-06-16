@@ -1,18 +1,7 @@
-/**
- * Seed the 2026 Waldo Tobler Distinguished Lecture event (AwardEvent +
- * Winners entries for the two speakers), and enrich past Tobler speakers
- * + past Aangeenbrug recipients with their current professional titles.
- *
- * Idempotent: each Winners row is matched on (award, year, name);
- * the 2026 AwardEvent is matched on (award, year).
- *
- * Run: npx tsx scripts/seed-tobler-2026-event.ts
- */
 import 'dotenv/config'
 import { getPayload } from 'payload'
 import config from '../src/payload.config'
 
-// 2026 Tobler speakers (both appear as current-year winners).
 const TOBLER_2026: Array<{
   name: string
   affiliation: string
@@ -33,9 +22,6 @@ const TOBLER_2026: Array<{
   },
 ]
 
-// Enriched affiliations for past Tobler speakers (current public title +
-// institution as of April 2026). Keyed on (year, name). Where a speaker
-// is not listed here, the existing affiliation is preserved.
 const TOBLER_PAST_POSITIONS: Record<string, string> = {
   '2025|Dr. Kathleen Stewart':
     'Professor of Geographical Sciences, University of Maryland, College Park',
@@ -83,8 +69,6 @@ const TOBLER_PAST_POSITIONS: Record<string, string> = {
     'Emeritus Professor of Geographical and Sustainability Sciences, University of Iowa',
 }
 
-// Prefixes already in Aangeenbrug affiliations are complete, but we
-// swap a couple where current institution or title changed.
 const AANGEENBRUG_POSITIONS: Record<string, string> = {
   '2008|Dr. Arthur Getis':
     'Distinguished Emeritus Professor of Geography, San Diego State University',
@@ -92,15 +76,12 @@ const AANGEENBRUG_POSITIONS: Record<string, string> = {
 
 async function main() {
   const payload = await getPayload({ config: await config })
-
-  // --- 2026 AwardEvent for Tobler ---
   const existingEvent = await payload.find({
     collection: 'award-events',
     where: { and: [{ award: { equals: 'tobler-lecture' } }, { year: { equals: 2026 } }] },
     limit: 1,
   })
   if (!existingEvent.docs.length) {
-    // Find the Tobler flyer media by filename.
     const { docs: flyerDocs } = await payload.find({
       collection: 'media',
       where: {
@@ -137,7 +118,6 @@ async function main() {
     console.log('2026 Tobler AwardEvent already exists')
   }
 
-  // --- Winners: 2026 Tobler speakers (hero card) ---
   for (const s of TOBLER_2026) {
     const existing = await payload.find({
       collection: 'winners',
@@ -166,7 +146,6 @@ async function main() {
     console.log(`Added 2026 Tobler winner: ${s.name}`)
   }
 
-  // --- Enrich past Tobler speakers' affiliations ---
   for (const [key, fullTitle] of Object.entries(TOBLER_PAST_POSITIONS)) {
     const [yearStr, name] = key.split('|')
     const year = parseInt(yearStr, 10)
@@ -192,7 +171,6 @@ async function main() {
     console.log(`  Tobler ${year} ${name}: affiliation updated`)
   }
 
-  // --- Enrich Aangeenbrug recipients where a current role was inferred ---
   for (const [key, fullTitle] of Object.entries(AANGEENBRUG_POSITIONS)) {
     const [yearStr, name] = key.split('|')
     const year = parseInt(yearStr, 10)
