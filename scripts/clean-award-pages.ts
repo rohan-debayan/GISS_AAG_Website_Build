@@ -1,18 +1,9 @@
-/**
- * Trim the "Past Winners" / "Past Tobler Lecture Awardees" section out of
- * the imported Aangeenbrug and Tobler Pages so the /awards/<slug> About
- * section only shows evergreen description text. The past-recipients /
- * past-speakers list continues to come from the Winners collection.
- *
- * Run:   npx tsx scripts/clean-award-pages.ts
- */
 import 'dotenv/config'
 import { getPayload } from 'payload'
 import config from '../src/payload.config'
 
 const TARGETS: Array<{
   slug: string
-  // Case-insensitive substring we look for as the marker heading text.
   stopHeading: string
 }> = [
   { slug: 'aangeenbrug-award', stopHeading: 'past winners' },
