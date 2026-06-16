@@ -1,20 +1,3 @@
-/**
- * WordPress → Payload migration script.
- *
- * Reads the JSON produced by ../../migration/parse_wxr.py and the media
- * files in ../../migration/assets/, then creates corresponding documents
- * via Payload's Local API. Safe to re-run (idempotent by wp* id fields).
- *
- * Run:
- *     npm run import:wp                     # full import
- *     npm run import:wp -- --dry-run        # report only, no writes
- *     npm run import:wp -- --limit 5        # import only first 5 of each type
- *
- * Assumes:
- * - docker compose up -d is running (Postgres reachable via DATABASE_URL)
- * - migration/content/*.json exists (run `python migration/parse_wxr.py`)
- * - migration/assets/ has downloaded files (run `python migration/download_assets.py`)
- */
 import 'dotenv/config'
 import { readFile } from 'node:fs/promises'
 import { createReadStream, existsSync } from 'node:fs'
@@ -28,19 +11,16 @@ import type { SerializedEditorState } from '@payloadcms/richtext-lexical/lexical
 
 import config from '../src/payload.config'
 
-// --- Paths ------------------------------------------------------------------
 const here = path.dirname(fileURLToPath(import.meta.url))
 const MIGRATION_DIR = path.resolve(here, '..', '..', 'migration')
 const CONTENT_DIR = path.join(MIGRATION_DIR, 'content')
 const ASSETS_DIR = path.join(MIGRATION_DIR, 'assets')
 
-// --- CLI flags --------------------------------------------------------------
 const argv = process.argv.slice(2)
 const dryRun = argv.includes('--dry-run')
 const limitIdx = argv.indexOf('--limit')
 const limit = limitIdx >= 0 ? parseInt(argv[limitIdx + 1], 10) : Infinity
 
-// --- Types (subset of WXR JSON shape) ---------------------------------------
 interface WxrAuthor {
   id: string
   login: string
@@ -69,56 +49,33 @@ interface WxrItem {
   attachment_url: string
 }
 
-// --- Helpers ----------------------------------------------------------------
 async function loadJson<T>(name: string): Promise<T> {
   const p = path.join(CONTENT_DIR, name)
   const buf = await readFile(p, 'utf-8')
   return JSON.parse(buf) as T
 }
 
-/**
- * Strip WordPress Gutenberg block comments from HTML.
- * They look like:  <!-- wp:paragraph --> ... <!-- /wp:paragraph -->
- */
 function stripGutenberg(html: string): string {
   return html.replace(/<!--\s*\/?wp:[^>]*-->/g, '').trim()
 }
 
-/**
- * Clean up patterns that break Payload's Lexical link validator:
- * - bare `<a>` with no href  (unwrap, keep text)
- * - `<a href="mailto:...">` / `tel:` / `javascript:`  (unwrap, keep text;
- *   Lexical's default LinkFeature only accepts http/https/relative URLs)
- * - `<a>` wrapping an `<img>` (unwrap — we want the image, not the link
- *   to the raw-file URL on aag-giss.org that will stop existing soon)
- * - empty `href=""`  (unwrap)
- * - href starting or ending with whitespace (trim inside the attribute)
- */
 function sanitizeWpHtml(html: string): string {
   let out = stripGutenberg(html || '')
 
-  // <figure>…</figure>  →  unwrap (keep inner HTML). Gutenberg emits figures
-  // around images and captions that Lexical has trouble parsing nested.
   out = out.replace(/<figure\b[^>]*>([\s\S]*?)<\/figure>/gi, '$1')
 
-  // <figcaption>…</figcaption>  →  turn into a paragraph.
   out = out.replace(
     /<figcaption\b[^>]*>([\s\S]*?)<\/figcaption>/gi,
     '<p>$1</p>',
   )
 
-  // <a …><img …/></a>  →  drop the link, keep the img.
-  // Handles both self-closing and not, with arbitrary whitespace.
   out = out.replace(
     /<a\b[^>]*>\s*(<img\b[^>]*?\/?>)\s*<\/a>/gi,
     '$1',
   )
 
-  // Trim whitespace inside href="..."  (common in copy-pasted links)
   out = out.replace(/href\s*=\s*"\s*([^"]+?)\s*"/gi, 'href="$1"')
 
-  // Unwrap <a> with no href, empty href, or non-http(s) protocol href.
-  // Keep the inner text.  Use a loop to handle nested/repeating matches.
   const badLinkRe =
     /<a\b([^>]*)>([\s\S]*?)<\/a>/gi
   out = out.replace(badLinkRe, (match, attrs: string, inner: string) => {
@@ -137,10 +94,6 @@ function sanitizeWpHtml(html: string): string {
   return out
 }
 
-/**
- * Convert WordPress HTML to Lexical editor state.
- * Returns Payload's Lexical richText value shape.
- */
 async function htmlToLexical(
   html: string,
   urlToMediaId: Map<string, number> = new Map(),
@@ -164,14 +117,6 @@ async function htmlToLexical(
   return result
 }
 
-/**
- * The HTML converter turns <img src="http://aag-giss.org/..."> into upload
- * nodes whose value is the source URL. Payload's validator rejects those —
- * it expects the value to be a real Media doc id. Walk the tree and:
- *   • replace value with the Payload media id if we have it in urlToMediaId
- *   • drop the node entirely if we don't (upstream WP image won't resolve
- *     post-cutover, so a broken img is worse than no img)
- */
 function fixUploadNodes(
   node: any,
   urlToMediaId: Map<string, number>,
@@ -182,13 +127,10 @@ function fixUploadNodes(
   for (const child of children) {
     if (child && child.type === 'upload') {
       const raw = typeof child.value === 'string' ? child.value : child.value?.id
-      // Look up by best match — any URL pointing at our uploads dir.
       let mediaId: number | undefined
       if (typeof raw === 'string') {
-        // Exact match first
         mediaId = urlToMediaId.get(raw)
         if (!mediaId) {
-          // Filename suffix match (e.g. "...-1024x576.jpg" vs full-size)
           const base = raw.split('/').pop()?.split('?')[0]?.split('-').slice(0, 3).join('-')
           if (base) {
             for (const [k, v] of urlToMediaId) {
@@ -200,7 +142,7 @@ function fixUploadNodes(
           }
         }
       } else if (typeof raw === 'number') {
-        mediaId = raw // already an id
+        mediaId = raw 
       }
       if (mediaId) {
         kept.push({
@@ -209,7 +151,6 @@ function fixUploadNodes(
           relationTo: child.relationTo || 'media',
         })
       }
-      // else: drop
     } else {
       fixUploadNodes(child, urlToMediaId)
       kept.push(child)
@@ -220,14 +161,12 @@ function fixUploadNodes(
   }
 }
 
-/** Derive local file path from the original aag-giss.org URL. */
 function assetLocalPath(url: string): string | null {
   const m = url.match(/\/wp-content\/uploads\/(.+)$/i)
   if (!m) return null
   return path.join(ASSETS_DIR, decodeURIComponent(m[1]))
 }
 
-/** Simple in-memory counters for the end-of-run summary. */
 const stats = {
   users: { created: 0, skipped: 0 },
   media: { created: 0, skipped: 0, missingFile: 0 },
@@ -236,7 +175,6 @@ const stats = {
   errors: [] as { kind: string; id: string; msg: string }[],
 }
 
-// --- Main -------------------------------------------------------------------
 async function main() {
   console.log(
     `\n=== WordPress → Payload import ${dryRun ? '(DRY RUN)' : ''} ${
@@ -245,7 +183,6 @@ async function main() {
   )
   const payload = await getPayload({ config })
 
-  // Preload data
   const authors = await loadJson<WxrAuthor[]>('authors.json')
   const pages = await loadJson<WxrItem[]>('pages.json')
   const posts = await loadJson<WxrItem[]>('posts.json')
@@ -255,7 +192,6 @@ async function main() {
     `Loaded: ${authors.length} authors, ${pages.length} pages, ${posts.length} posts, ${attachments.length} attachments\n`,
   )
 
-  // -------- 1. USERS ---------------------------------------------------------
   console.log('--- Importing authors as Users ---')
   const authorIdToUserId = new Map<string, number>()
   for (const a of authors) {
@@ -263,7 +199,6 @@ async function main() {
       console.log(`  skip: author ${a.login} has no email`)
       continue
     }
-    // Does a user with this email already exist?
     const existing = await payload.find({
       collection: 'users',
       where: { email: { equals: a.email } },
@@ -280,7 +215,6 @@ async function main() {
       console.log(`  would create: ${a.email}  (${a.display_name})`)
       continue
     }
-    // Generate a random placeholder password; the user can reset via "forgot password" flow later.
     const pwd = `wp_${Math.random().toString(36).slice(2)}_${Date.now()}`
     const created = await payload.create({
       collection: 'users',
@@ -297,7 +231,6 @@ async function main() {
     console.log(`  create: ${a.email}  id=${created.id}`)
   }
 
-  // -------- 2. MEDIA --------------------------------------------------------
   console.log('\n--- Importing attachments as Media ---')
   const urlToMediaId = new Map<string, number>()
   let mediaCount = 0
@@ -361,7 +294,6 @@ async function main() {
     }
   }
 
-  // -------- 3. PAGES --------------------------------------------------------
   console.log('\n--- Importing pages ---')
   let pageCount = 0
   for (const pg of pages) {
@@ -407,7 +339,6 @@ async function main() {
     }
   }
 
-  // -------- 4. POSTS --------------------------------------------------------
   console.log('\n--- Importing posts ---')
   let postCount = 0
   for (const p of posts) {
@@ -427,7 +358,7 @@ async function main() {
       console.log(`  skip: "${p.title}" (already id=${existing.docs[0].id})`)
       continue
     }
-    // Resolve author
+
     const author =
       authors.find(
         (a) => a.display_name === p.creator || a.login === p.creator,
@@ -472,7 +403,6 @@ async function main() {
     }
   }
 
-  // -------- SUMMARY ---------------------------------------------------------
   console.log('\n=== Summary ===')
   console.log(`Users:  created=${stats.users.created}  skipped=${stats.users.skipped}`)
   console.log(
@@ -491,7 +421,6 @@ async function main() {
   process.exit(stats.errors.length ? 1 : 0)
 }
 
-// --- small utils ------------------------------------------------------------
 function slugify(s: string): string {
   return s
     .toLowerCase()
