@@ -1,12 +1,3 @@
-/**
- * Seed the AwardEvents collection with the 2026 Student Honors Paper
- * Competition session details.
- *
- * Poster reuses media id 30 (already in the library:
- *   Twitter_2026_AAG_GISS_competition_flyer-scaled.jpg).
- *
- * Run: npx tsx scripts/seed-award-events.ts
- */
 import 'dotenv/config'
 import { getPayload } from 'payload'
 import config from '../src/payload.config'
@@ -14,7 +5,6 @@ import config from '../src/payload.config'
 async function main() {
   const payload = await getPayload({ config: await config })
 
-  // Locate the competition flyer in the Media library by filename.
   const { docs: flyerDocs } = await payload.find({
     collection: 'media',
     where: {
