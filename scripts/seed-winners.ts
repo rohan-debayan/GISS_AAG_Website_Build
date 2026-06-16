@@ -1,17 +1,3 @@
-/**
- * Seed the Winners collection with past Aangeenbrug Award recipients
- * and past Waldo Tobler Distinguished Lecture speakers.
- *
- * Data drawn from the original aag-giss.org awards pages; no photos
- * attached (admins can upload headshots later via the admin panel).
- *
- * Idempotent: re-running this script will skip any row that already
- * exists (matched on award + year + name).
- *
- * Run:
- *     npx tsx scripts/seed-winners.ts
- *     npx tsx scripts/seed-winners.ts --dry-run
- */
 import 'dotenv/config'
 import { getPayload } from 'payload'
 import config from '../src/payload.config'
@@ -28,7 +14,6 @@ interface Seed {
   sortOrder?: number
 }
 
-/** Aangeenbrug Distinguished Career Award, 2005 onwards. */
 const AANGEENBRUG: Seed[] = [
   { award: 'aangeenbrug', year: 2015, position: 'recipient', name: 'Dr. Timothy Nyerges', affiliation: 'Professor of Geography, University of Washington' },
   { award: 'aangeenbrug', year: 2014, position: 'recipient', name: 'Dr. Gerard Rushton', affiliation: 'Emeritus Professor of Geography, University of Iowa' },
@@ -43,7 +28,6 @@ const AANGEENBRUG: Seed[] = [
   { award: 'aangeenbrug', year: 2005, position: 'recipient', name: 'Dr. Roger Tomlinson', affiliation: 'Fellow of the Royal Geographical Society' },
 ]
 
-/** Waldo Tobler Distinguished Lecture in GIScience, 2008 onwards. */
 const TOBLER: Seed[] = [
   { award: 'tobler-lecture', year: 2025, position: 'speaker', name: 'Dr. Kathleen Stewart', affiliation: 'University of Maryland \u2013 College Park', sortOrder: 1 },
   { award: 'tobler-lecture', year: 2025, position: 'speaker', name: 'Dr. Song Gao', affiliation: 'University of Wisconsin-Madison', sortOrder: 2 },
