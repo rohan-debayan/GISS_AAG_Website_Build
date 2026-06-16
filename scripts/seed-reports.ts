@@ -1,13 +1,3 @@
-/**
- * Seed the Reports collection from existing business-meeting documents
- * already in the Media library. Idempotent — matches on (year + kind).
- *
- * Defaults:
- *   - Minutes -> visibility 'officers' (internal deliberations)
- *   - Budget, Presentation -> 'public' (numbers and slides are sharable)
- *
- * Run: npx tsx scripts/seed-reports.ts
- */
 import 'dotenv/config'
 import { getPayload } from 'payload'
 import config from '../src/payload.config'
@@ -77,7 +67,6 @@ async function main() {
   let skipped = 0
 
   for (const seed of SEEDS) {
-    // Find the Media doc by filename
     const { docs: mediaDocs } = await payload.find({
       collection: 'media',
       where: { filename: { equals: seed.filename } },
@@ -89,7 +78,6 @@ async function main() {
       continue
     }
 
-    // De-dupe on year + kind + title (minor variants shouldn't duplicate).
     const existing = await payload.find({
       collection: 'reports',
       where: {
