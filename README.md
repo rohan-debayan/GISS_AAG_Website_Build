@@ -2,9 +2,9 @@
 
 The website of the **Geographic Information Science and Systems Specialty Group**, an American Association of Geographers (AAG) specialty group. A modern rebuild of the prior WordPress site, preserving a decade of community content while giving future board members a simple way to publish updates.
 
-Live site: 
+Live site: https://aag-giss.org
 Repository: github.com/rohan-debayan/GISS_AAG_Website_Build
-
+(Contributor access shared with aag-giss-sg)
 ---
 
 ## Contents
@@ -48,7 +48,7 @@ The design is editorial (Fraunces serif + Inter sans; forest green + terracotta 
 | Image optimization | Next.js Image + Payload Sharp variants (thumbnail 400x400, card 800x600, hero 1920x1080) |
 | PDF rendering | `react-pdf` for the newsletter carousel |
 | Hosting | **Railway** (app + managed Postgres) |
-| Domain | `aag-giss-sg.org` (planned) |
+| Domain | `aag-giss-sg.org` |
 
 Everything runs in one Node.js service. Admin panel (`/admin`) and public site share the same server; content edits appear on the public site instantly.
 
