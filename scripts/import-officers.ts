@@ -1,15 +1,3 @@
-/**
- * Import officers (current + past chairs) into Payload's Officers
- * collection from ../../migration/content/officers.json.
- *
- * Run:
- *     npx tsx scripts/import-officers.ts
- *     npx tsx scripts/import-officers.ts --dry-run
- *     npx tsx scripts/import-officers.ts --skip-past   (only current officers)
- *
- * Idempotent by (name, role_slug) pair: re-running will skip existing
- * records rather than duplicating them.
- */
 import 'dotenv/config'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -60,7 +48,6 @@ async function main() {
   let skippedCurrent = 0
   console.log('--- Current officers ---')
   for (const o of data.current) {
-    // De-dupe on (name + role_slug).
     const existing = await payload.find({
       collection: 'officers',
       where: {
