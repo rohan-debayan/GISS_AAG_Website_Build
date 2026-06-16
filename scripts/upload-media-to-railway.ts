@@ -1,20 +1,3 @@
-/**
- * Re-upload every original media file from H:/GISSWebsite/site/media/ to
- * the Railway deployment via Payload's HTTP API, then restore all FK
- * references (posts, pages, officers, gallery, winners, award events,
- * newsletters, reports, users). Includes documents (DOCX/PPTX/XLSX/PDF)
- * as well as images — everything under /media.
- *
- * Strategy: snapshot old FKs + Lexical upload refs, delete old orphan
- * media rows (FKs auto-null via ON DELETE SET NULL), upload fresh
- * originals so Payload on Railway writes them to the mounted volume,
- * then replay the FKs with new ids matched by filename.
- *
- * Run:
- *   ADMIN_EMAIL=... ADMIN_PASSWORD=... \
- *   DATABASE_URL=<railway-public> \
- *     npx tsx scripts/upload-media-to-railway.ts
- */
 import 'dotenv/config'
 import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
@@ -46,8 +29,6 @@ function mimeOf(p: string): string {
   )[ext] ?? 'application/octet-stream'
 }
 
-/** Foreign-key columns pointing at media.id. All declared with
- *  ON DELETE SET NULL so deleting a media row cascades safely. */
 const FK_COLS: Array<[string, string]> = [
   ['officers', 'photo_id'],
   ['winners', 'photo_id'],
@@ -99,7 +80,6 @@ async function uploadOne(
   return json.doc?.id ?? null
 }
 
-/** Walk a Lexical content tree, collect every (nodeRef, oldId) pair. */
 function collectUploadRefs(
   node: any,
   trail: any[] = [],
@@ -128,7 +108,6 @@ async function main() {
   })
   await pg.connect()
 
-  // 1. Snapshot current media rows: id -> filename.
   const { rows: oldMedia } = await pg.query<{ id: number; filename: string }>(
     `SELECT id, filename FROM media`,
   )
@@ -136,7 +115,6 @@ async function main() {
   for (const r of oldMedia) oldIdToFilename.set(r.id, r.filename)
   console.log(`Railway has ${oldMedia.length} existing (orphan) media rows.`)
 
-  // 2. Snapshot FK references per table/column before deletion.
   const snapshot: Array<{
     table: string
     col: string
@@ -154,7 +132,6 @@ async function main() {
   }
   console.log(`Snapshot: ${snapshot.length} FK references recorded.`)
 
-  // 3. Snapshot Lexical upload-node references inside posts.content + pages.content.
   const lexSnapshot: Array<{
     table: 'posts' | 'pages'
     row_id: number
@@ -173,12 +150,9 @@ async function main() {
   }
   console.log(`Snapshot: ${lexSnapshot.length} posts/pages with embedded upload nodes.\n`)
 
-  // 4. DELETE all existing media rows. FKs auto-null; Lexical JSONB keeps its
-  //    numeric refs (we'll fix those in step 7).
   const { rowCount: deleted } = await pg.query(`DELETE FROM media`)
   console.log(`Deleted ${deleted} orphan media rows.\n`)
 
-  // 5. Upload every local original (skip size-variant files; Sharp regenerates those).
   const allFiles = await readdir(LOCAL_MEDIA)
   const originals = allFiles.filter((f) => !SIZE_VARIANT.test(f))
   console.log(`Local /media has ${allFiles.length} files; uploading ${originals.length} originals.`)
@@ -202,7 +176,6 @@ async function main() {
   }
   console.log(`\nUploaded ${filenameToNewId.size}/${originals.length} files.\n`)
 
-  // 6. Replay FK references using (filename -> new id) lookup.
   console.log('Restoring FK references...')
   let fkRestored = 0
   let fkMissed = 0
@@ -220,9 +193,6 @@ async function main() {
   }
   console.log(`  restored=${fkRestored}  missed=${fkMissed}\n`)
 
-  // 7. Remap Lexical upload node values using the filename snapshot too.
-  //    We have content JSON from step 3; remap its old ids via oldIdToFilename
-  //    then filenameToNewId, and write back.
   console.log('Remapping Lexical upload nodes...')
   let lexRestored = 0
   for (const entry of lexSnapshot) {
