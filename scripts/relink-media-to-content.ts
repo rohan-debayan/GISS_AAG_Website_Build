@@ -1,13 +1,3 @@
-/**
- * After media is re-uploaded to Railway, recreate the structural links:
- *   - rebuild the Gallery collection from /001.jpg... 101.jpg in Media
- *   - set officer.photo based on known filename patterns per officer
- *   - set winner.photo if their photo filename hints at their name
- *   - create Reports entries for the business-meeting docs that exist as Media
- *   - create the 2025 Newsletter entry if not present
- *
- * Uses direct Postgres; no REST needed for these table writes.
- */
 import 'dotenv/config'
 import { Client } from 'pg'
 
@@ -24,9 +14,7 @@ async function q<T extends Record<string, any> = any>(
   return (await c.query<T>(sql, params)).rows
 }
 
-// --- helpers ---
 async function findMediaId(filename: string): Promise<number | null> {
-  // Prefer the un-suffixed (NNN.jpg) over (NNN-1.jpg) in case of duplicates.
   const rows = await q<{ id: number; filename: string }>(
     `SELECT id, filename FROM media WHERE filename = $1 ORDER BY id LIMIT 1`,
     [filename],
@@ -42,7 +30,6 @@ async function findMediaIdByLike(pattern: string): Promise<number | null> {
   return rows[0]?.id ?? null
 }
 
-// --- 1. Rebuild Gallery (001.jpg ... 101.jpg, album "AAG 2026 San Francisco") ---
 console.log('\n--- Gallery ---')
 const existingGallery = await q<{ c: string }>(`SELECT COUNT(*) c FROM gallery`)
 if (Number(existingGallery[0].c) === 0) {
@@ -67,7 +54,6 @@ if (Number(existingGallery[0].c) === 0) {
   console.log(`  already has ${existingGallery[0].c} rows, skipping`)
 }
 
-// --- 2. Officer photos ---
 console.log('\n--- Officer photos ---')
 const officerPhotos: Array<{ name: string; filenameLike: string }> = [
   { name: 'Debayan Mandal', filenameLike: 'Mandal_Debayan%.jpg' },
@@ -91,7 +77,6 @@ for (const op of officerPhotos) {
   console.log(`  ${op.name}: photo_id=${mediaId} (${r.rowCount} row(s) updated)`)
 }
 
-// --- 3. Reports (6 business-meeting docs) ---
 console.log('\n--- Reports ---')
 const reports: Array<{
   title: string
@@ -130,7 +115,6 @@ for (const r of reports) {
   }
 }
 
-// --- 4. Newsletter (2025 inaugural) ---
 console.log('\n--- Newsletter ---')
 const nlExists = await q<{ id: number }>(
   `SELECT id FROM newsletters WHERE title LIKE 'First Newsletter%'`,
@@ -157,7 +141,6 @@ if (nlExists.length === 0) {
   console.log('  already exists')
 }
 
-// --- 5. Award event posters ---
 console.log('\n--- Award event posters ---')
 const studentHonorsPoster = await findMediaIdByLike('Twitter_2026_AAG_GISS_competition_flyer%')
 const toblerPoster = await findMediaIdByLike('Twitter_2026_AAG_GISS_Tobler%')
