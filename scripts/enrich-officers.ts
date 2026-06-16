@@ -1,14 +1,3 @@
-/**
- * Enrich the Officers collection with public bios and portrait photos
- * from each person's faculty / institutional page.
- *
- * Skips officers who already have a photo set (so user-uploaded photos
- * are preserved). Skips officers who already have a bio.
- *
- * Run:
- *     npx tsx scripts/enrich-officers.ts
- *     npx tsx scripts/enrich-officers.ts --dry-run
- */
 import 'dotenv/config'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -33,10 +22,6 @@ interface Enrichment {
 const UA =
   'GISS-SG-Migration/1.0 (https://github.com/rohan-debayan/gissaag.github.io)'
 
-/**
- * Public-domain / institutional-page portrait URLs and bios drawn from
- * each officer's official faculty page (source URL in `source`).
- */
 const ENRICHMENTS: Enrichment[] = [
   {
     name: 'Gengchen Mai',
@@ -132,7 +117,6 @@ async function main() {
     const updates: Record<string, unknown> = {}
     let actions: string[] = []
 
-    // --- Bio
     if (hasBio) {
       actions.push('bio exists')
     } else {
