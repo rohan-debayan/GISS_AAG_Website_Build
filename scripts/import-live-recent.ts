@@ -1,14 +1,3 @@
-/**
- * Import the 2 posts + 2 pages that were added to aag-giss.org AFTER the
- * Oct 17 2025 WXR export, plus their 2 new media files. Data source is the
- * WP REST API snapshot saved at migration/live/*.json by fetch_live.py.
- *
- * Run:
- *     npx tsx scripts/import-live-recent.ts
- *     npx tsx scripts/import-live-recent.ts --dry-run
- *
- * Idempotent by wpPostId / wpPageId / wpAttachmentId.
- */
 import 'dotenv/config'
 import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -29,7 +18,6 @@ const ASSETS = path.join(MIG, 'assets')
 
 const dryRun = process.argv.includes('--dry-run')
 
-// WXR category term_ids → Payload category slugs (from taxonomies.json).
 const CATEGORY_BY_WP_ID: Record<number, string> = {
   9: 'award',
   10: 'board-nomination',
@@ -39,7 +27,7 @@ const CATEGORY_BY_WP_ID: Record<number, string> = {
   24: 'call-for-papers',
   28: 'newsletter',
   4: 'website-update',
-  1: 'news', // uncategorized → news
+  1: 'news',
 }
 
 function stripGutenberg(html: string): string {
@@ -131,13 +119,10 @@ function assetLocal(url: string): string | null {
   return path.join(ASSETS, decodeURIComponent(m[1]))
 }
 
-/** Remove WP's auto-appended read-more suffix + decode common HTML entities. */
 function cleanExcerpt(s: string): string {
   let out = (s || '').replace(/<[^>]+>/g, '')
-  // Strip WordPress's default "Continue reading →" suffix.
   out = out.replace(/\s*&hellip;\s*Continue reading\s*&rarr;\s*$/i, '\u2026')
   out = out.replace(/\s*\u2026\s*Continue reading\s*\u2192\s*$/i, '\u2026')
-  // Decode the most common named entities we'd actually see in excerpts.
   out = out
     .replace(/&hellip;/g, '\u2026')
     .replace(/&rarr;/g, '\u2192')
@@ -160,7 +145,6 @@ async function main() {
   console.log(`\n=== Live-recent import ${dryRun ? '(DRY RUN)' : ''}\n`)
   const payload = await getPayload({ config: await config })
 
-  // --- Determine which are NEW (not in WXR export)
   const livePosts = JSON.parse(await readFile(path.join(LIVE, 'posts.json'), 'utf-8'))
   const livePages = JSON.parse(await readFile(path.join(LIVE, 'pages.json'), 'utf-8'))
   const liveMedia = JSON.parse(await readFile(path.join(LIVE, 'media.json'), 'utf-8'))
@@ -181,14 +165,12 @@ async function main() {
   console.log(`New pages:  ${newPages.length}`)
   console.log(`New media:  ${newMedia.length}\n`)
 
-  // --- Build urlToMediaId from already-imported media (so inline images resolve)
   const urlToMediaId = new Map<string, number>()
   const allMedia = await payload.find({ collection: 'media', limit: 500, depth: 0 })
   for (const m of allMedia.docs as any[]) {
     if (m.wpSourceUrl) urlToMediaId.set(m.wpSourceUrl, m.id as number)
   }
 
-  // --- Import new media
   console.log('--- Media ---')
   for (const m of newMedia) {
     const existing = await payload.find({
@@ -233,7 +215,6 @@ async function main() {
     }
   }
 
-  // --- Import new pages
   console.log('\n--- Pages ---')
   for (const pg of newPages) {
     const existing = await payload.find({
@@ -268,7 +249,6 @@ async function main() {
     }
   }
 
-  // --- Import new posts
   console.log('\n--- Posts ---')
   for (const p of newPosts) {
     if (p.status !== 'publish') {
@@ -286,7 +266,6 @@ async function main() {
     }
     const catId = Array.isArray(p.categories) ? p.categories[0] : undefined
     const category = (catId && CATEGORY_BY_WP_ID[catId]) || 'news'
-    // Resolve author by wpAuthorId
     const authors = await payload.find({
       collection: 'users',
       where: { wpAuthorId: { equals: String(p.author) } },
