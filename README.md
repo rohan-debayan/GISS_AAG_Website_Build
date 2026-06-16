@@ -3,8 +3,10 @@
 The website of the **Geographic Information Science and Systems Specialty Group**, an American Association of Geographers (AAG) specialty group. A modern rebuild of the prior WordPress site, preserving a decade of community content while giving future board members a simple way to publish updates.
 
 Live site: https://aag-giss.org
+
 Repository: github.com/rohan-debayan/GISS_AAG_Website_Build
 (Contributor access shared with aag-giss-sg)
+
 ---
 
 ## Contents
