@@ -7,8 +7,6 @@ const __filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(__filename)
 
 const nextConfig: NextConfig = {
-  // Staging: don't let TS errors block the build. The dev server
-  // type-checks continuously; we tighten this before true prod.
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
   images: {
@@ -16,14 +14,10 @@ const nextConfig: NextConfig = {
       { pathname: '/api/media/file/**' },
       { pathname: '/images/**' },
     ],
-    // Belt-and-suspenders: the Media afterRead hook localizes URLs so
-    // these remotePatterns normally aren't needed. Kept for safety.
     remotePatterns: [
       { protocol: 'http', hostname: 'localhost' },
       { protocol: 'https', hostname: 'localhost' },
-      // Railway staging (any *.up.railway.app subdomain)
       { protocol: 'https', hostname: '**.up.railway.app' },
-      // Future production domain — update once we cut over
       { protocol: 'https', hostname: 'aag-giss-sg.org' },
       { protocol: 'https', hostname: 'www.aag-giss-sg.org' },
     ],
